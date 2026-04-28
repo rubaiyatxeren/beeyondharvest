@@ -106,11 +106,6 @@ function useAPI(path, deps = [], skip = false) {
   return { data, loading, error, setData };
 }
 
-// Clear cache when needed (e.g., after mutations)
-function clearAPICache() {
-  apiCache.clear();
-}
-
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -281,20 +276,17 @@ function Navbar() {
     { id: "shop", label: "Shop", icon: ic.grid },
     { id: "blog", label: "Blog", icon: ic.blog },
     { id: "track", label: "Track", icon: ic.truck },
-    { id: "orders", label: "My Orders", icon: ic.box },
     { id: "contact", label: "Contact", icon: ic.phone },
   ];
 
   return (
     <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-amber-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-3">
-        {/* Logo */}
         <button onClick={() => setPage("home")} className="flex items-center gap-2.5 btn-bounce flex-shrink-0 mr-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-xl shadow-md">🍯</div>
           <span className="font-display text-xl font-bold text-stone-900 hidden sm:block">BeeHarvest</span>
         </button>
 
-        {/* Desktop links */}
         <div className="hidden md:flex items-center gap-1 flex-1">
           {links.map((l) => (
             <button
@@ -311,7 +303,6 @@ function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          {/* Search */}
           {searchOpen ? (
             <div className="flex items-center gap-2">
               <input
@@ -332,7 +323,6 @@ function Navbar() {
             </button>
           )}
 
-          {/* Cart */}
           <button onClick={() => setPage("cart")} className="relative p-2 rounded-lg text-stone-500 hover:bg-amber-50 btn-bounce">
             <I d={ic.cart} size={20} />
             {cart.count > 0 && (
@@ -342,14 +332,12 @@ function Navbar() {
             )}
           </button>
 
-          {/* Mobile menu toggle */}
           <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 rounded-lg text-stone-500 hover:bg-stone-100 btn-bounce">
             <I d={menuOpen ? ic.x : ic.menu} size={20} />
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-amber-50 bg-white px-4 py-2 pb-4" style={{ animation: "fadeIn .18s ease" }}>
           {links.map((l) => (
@@ -444,15 +432,12 @@ function HomePage() {
   const { setPage, setSearchQuery } = useContext(NavCtx);
   const { data: rawFeatured, loading: featLoading } = useAPI("/api/products?featured=true&limit=8");
   const { data: rawCategories } = useAPI("/api/categories");
-  const cart = useCart();
-  const toast = useToast();
 
   const featured = rawFeatured?.products || rawFeatured || [];
   const cats = rawCategories?.categories || rawCategories || [];
 
   return (
     <div>
-      {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900 min-h-[540px] flex items-center">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 30% 50%, #f59e0b 0%, transparent 60%), radial-gradient(circle at 80% 20%, #d97706 0%, transparent 50%)" }} />
         <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-5" style={{ backgroundImage: "repeating-linear-gradient(45deg, #f59e0b 0, #f59e0b 1px, transparent 0, transparent 50%)", backgroundSize: "20px 20px" }} />
@@ -486,7 +471,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Stats bar */}
       <div className="bg-amber-500">
         <div className="max-w-7xl mx-auto px-4 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[["🍯", "100% Pure", "No Additives"], ["🌿", "Organic", "Lab Tested"], ["🚚", "24–48h", "Fast Delivery"], ["⭐", "50K+", "Happy Customers"]].map(([icon, val, label]) => (
@@ -499,7 +483,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Categories */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <div className="text-center mb-10">
           <h2 className="font-display text-3xl font-bold text-stone-900 mb-2">Shop by Category</h2>
@@ -523,7 +506,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Featured Products */}
       <div className="bg-stone-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-end justify-between mb-10">
@@ -550,7 +532,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Why choose us */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <h2 className="font-display text-3xl font-bold text-stone-900 text-center mb-10">Why BeeHarvest?</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -564,7 +545,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* CTA */}
       <div className="bg-gradient-to-r from-amber-400 to-amber-500 py-16 text-center">
         <div className="max-w-2xl mx-auto px-4">
           <div className="text-5xl mb-4">🎁</div>
@@ -576,14 +556,13 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-stone-900 text-stone-300 py-12 px-4">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="font-display text-xl font-bold text-white mb-3">🍯 BeeHarvest</div>
             <p className="text-sm leading-relaxed text-stone-400">Pure honey, straight from the hive. Trusted by 50,000+ customers across Bangladesh.</p>
           </div>
-          {[{ title: "Quick Links", links: ["Home", "Shop", "Blog", "Track Order", "My Orders", "Contact"] },
+          {[{ title: "Quick Links", links: ["Home", "Shop", "Blog", "Track Order", "Contact"] },
           { title: "Policies", links: ["Returns", "Shipping", "Privacy Policy", "Terms of Service"] },
           { title: "Contact", links: ["📧 info@beeharvest.com", "📞 01XXXXXXXXX", "📍 Dhaka, Bangladesh"] }
           ].map((col) => (
@@ -631,7 +610,6 @@ function ShopPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900">All Products</h1>
@@ -652,7 +630,6 @@ function ShopPage() {
         </div>
       </div>
 
-      {/* Search bar */}
       <div className="relative mb-6">
         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
           <I d={ic.search} size={17} className="text-stone-400" />
@@ -671,7 +648,6 @@ function ShopPage() {
       </div>
 
       <div className="flex gap-6 items-start">
-        {/* Sidebar */}
         {sidebarOpen && (
           <div className="hidden sm:block w-56 flex-shrink-0 bg-white rounded-2xl border border-stone-100 p-5 sticky top-20" style={{ animation: "slideUp .2s ease" }}>
             <h3 className="font-semibold text-stone-800 text-sm mb-4">Categories</h3>
@@ -699,7 +675,6 @@ function ShopPage() {
           </div>
         )}
 
-        {/* Grid */}
         <div className="flex-1 min-w-0">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -722,7 +697,6 @@ function ShopPage() {
             </div>
           )}
 
-          {/* Pagination */}
           {pages > 1 && (
             <div className="flex justify-center gap-2 mt-10">
               <button disabled={filters.page === 1} onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))} className="p-2 rounded-xl border border-stone-200 disabled:opacity-40 hover:bg-stone-50 btn-bounce">
@@ -771,7 +745,6 @@ function ProductPage({ productId }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8" style={{ animation: "fadeIn .3s ease" }}>
-      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-stone-400 mb-8 flex-wrap">
         <button onClick={() => setPage("home")} className="hover:text-amber-600 transition-colors font-medium">Home</button>
         <I d={ic.chev_r} size={12} />
@@ -781,7 +754,6 @@ function ProductPage({ productId }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
-        {/* Images */}
         <div>
           <div className="bg-amber-50 rounded-2xl overflow-hidden aspect-square flex items-center justify-center mb-3">
             {images[activeImg] ? (
@@ -799,7 +771,6 @@ function ProductPage({ productId }) {
           )}
         </div>
 
-        {/* Info */}
         <div>
           <span className="inline-block bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">{p.category?.name || "Honey"}</span>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-3 leading-tight">{p.name}</h1>
@@ -857,7 +828,6 @@ function ProductPage({ productId }) {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
         <div className="flex border-b border-stone-100">
           {["description", "reviews", "faq"].map((t) => (
@@ -924,11 +894,9 @@ function CartPage() {
   const [selectedCity, setSelectedCity] = useState("");
   const [deliveryLoading, setDeliveryLoading] = useState(false);
 
-  // Fetch delivery options
   const { data: rawDelivery } = useAPI("/api/delivery-charges");
   const deliveryOptions = rawDelivery?.data || rawDelivery || [];
 
-  // Function to fetch delivery charge from backend API
   const fetchDeliveryCharge = useCallback(async (city, subtotal) => {
     if (!city) return null;
     setDeliveryLoading(true);
@@ -944,7 +912,6 @@ function CartPage() {
     }
   }, []);
 
-  // Update delivery when city or subtotal changes using backend API
   useEffect(() => {
     const updateDelivery = async () => {
       if (!selectedCity) return;
@@ -985,7 +952,6 @@ function CartPage() {
     </div>
   );
 
-  // Common Bangladeshi cities for delivery selection
   const cities = ["Dhaka", "Chittagong", "Rajshahi", "Sylhet", "Khulna", "Barishal", "Rangpur", "Mymensingh", "Narayanganj", "Gazipur"];
 
   return (
@@ -993,7 +959,6 @@ function CartPage() {
       <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-8">Shopping Cart <span className="text-stone-400 font-normal text-xl">({cart.count})</span></h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
-        {/* Items */}
         <div className="space-y-4">
           {cart.items.map((item) => {
             const imgSrc = (() => { if (!item.images?.length) return null; const i = item.images[0]; return typeof i === "string" ? CDN(i) : CDN(i?.url); })();
@@ -1026,9 +991,7 @@ function CartPage() {
           })}
         </div>
 
-        {/* Summary */}
         <div className="lg:sticky lg:top-20 space-y-4">
-          {/* City Selection for Delivery */}
           <div className="bg-white rounded-2xl border border-stone-100 p-5">
             <h3 className="font-semibold text-stone-800 mb-3 text-sm flex items-center gap-2">
               <I d={ic.map} size={16} className="text-amber-600" /> Delivery Location
@@ -1056,7 +1019,6 @@ function CartPage() {
             )}
           </div>
 
-          {/* Coupon */}
           <div className="bg-white rounded-2xl border border-stone-100 p-5">
             <h3 className="font-semibold text-stone-800 mb-3 text-sm flex items-center gap-2">
               <I d={ic.tag} size={16} className="text-amber-600" /> Coupon Code
@@ -1079,7 +1041,6 @@ function CartPage() {
             )}
           </div>
 
-          {/* Order Summary */}
           <div className="bg-white rounded-2xl border border-stone-100 p-5">
             <h3 className="font-semibold text-stone-800 mb-4">Order Summary</h3>
             <div className="space-y-3 text-sm">
@@ -1101,21 +1062,6 @@ function CartPage() {
       </div>
     </div>
   );
-}
-
-// ─── DELIVERY CHARGE LOGIC ─────────────────────────────────────────────────────
-function computeDeliveryCharge(deliveryOptions, city, subtotal) {
-  if (!deliveryOptions?.length) return { amount: 0, name: "Standard Delivery" };
-  const freeOpt = deliveryOptions.find(d => d.minOrderAmount && subtotal >= d.minOrderAmount);
-  if (freeOpt) return { ...freeOpt, amount: 0 };
-  const dhakaCities = ["dhaka", "narayanganj", "gazipur", "manikganj"];
-  const cityLower = (city || "").toLowerCase();
-  const isDhaka = dhakaCities.some(c => cityLower.includes(c));
-  const insideCharge = deliveryOptions.find(d => d.name === "inside_dhaka");
-  const outsideCharge = deliveryOptions.find(d => d.name === "outside_dhaka");
-  if (isDhaka && insideCharge) return insideCharge;
-  if (!isDhaka && outsideCharge) return outsideCharge;
-  return deliveryOptions[0] || { amount: 60, name: "Standard Delivery" };
 }
 
 // ─── CHECKOUT PAGE ────────────────────────────────────────────────────────────
@@ -1356,7 +1302,7 @@ function TrackPage() {
       <div className="bg-white rounded-2xl border border-stone-100 p-6 mb-6 shadow-sm">
         <div className="flex gap-3">
           <div className="flex-1 relative">
-            <input value={input} onChange={(e) => setInput(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === "Enter" && track()} placeholder="e.g. BH-2024-00001" className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-sm font-medium" />
+            <input value={input} onChange={(e) => setInput(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === "Enter" && track()} placeholder="e.g. ORD-202501-00001" className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-sm font-medium" />
             <div className="absolute left-3 top-1/2 -translate-y-1/2"><I d={ic.box} size={17} className="text-stone-400" /></div>
           </div>
           <button onClick={track} disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold px-5 rounded-xl btn-bounce shadow-md shadow-amber-200 transition-colors flex items-center gap-2 text-sm disabled:opacity-60">
@@ -1379,12 +1325,13 @@ function TrackPage() {
             </span>
           </div>
 
-          {order.orderStatus !== "cancelled" && (
+          {order.orderStatus !== "cancelled" && order.orderStatus !== "delivered" && (
             <div className="mb-7">
               <div className="flex justify-between relative">
                 <div className="absolute top-4 left-[5%] right-[5%] h-0.5 bg-stone-100 z-0" />
                 {steps.map((s, i) => {
-                  const done = steps.indexOf(order.orderStatus || "") >= i;
+                  const currentIdx = steps.indexOf(order.orderStatus || "pending");
+                  const done = currentIdx >= i;
                   return (
                     <div key={s} className="flex-1 text-center relative z-10">
                       <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center text-xs font-bold transition-all ${done ? "bg-amber-500 text-white shadow-md shadow-amber-200" : "bg-stone-100 text-stone-400"}`}>
@@ -1432,159 +1379,16 @@ function TrackPage() {
   );
 }
 
-// ─── ORDERS PAGE (Get all orders by phone number) ───────────────────────────────
-function OrdersPage() {
-  const [phone, setPhone] = useState("");
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  const fetchOrders = async () => {
-    if (!phone.trim()) { setErr("Please enter your phone number"); return; }
-    if (!phone.match(/^01[3-9]\d{8}$/)) { setErr("Enter valid BD phone number (01XXXXXXXXX)"); return; }
-    setLoading(true); setErr(""); setOrders([]);
-    try {
-      const data = await apiFetch(`/api/orders/customer/${encodeURIComponent(phone)}`);
-      setOrders(data.data || data);
-      if (!data.data?.length) setErr("No orders found for this number.");
-    } catch (e) {
-      setErr(e.message || "Failed to fetch orders. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const statusColor = { pending: "amber", confirmed: "blue", processing: "violet", shipped: "cyan", delivered: "emerald", cancelled: "red" };
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="text-center mb-10">
-        <div className="text-5xl mb-3">📋</div>
-        <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">My Orders</h1>
-        <p className="text-stone-500">Enter your phone number to see all your orders</p>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-stone-100 p-6 mb-8 shadow-sm">
-        <div className="flex gap-3 flex-col sm:flex-row">
-          <div className="flex-1 relative">
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && fetchOrders()}
-              placeholder="Enter your phone number (e.g., 017XXXXXXXX)"
-              className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-sm font-medium"
-            />
-            <div className="absolute left-3 top-1/2 -translate-y-1/2"><I d={ic.phone} size={17} className="text-stone-400" /></div>
-          </div>
-          <button onClick={fetchOrders} disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold px-6 py-3.5 rounded-xl btn-bounce shadow-md shadow-amber-200 transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-60 min-w-[120px]">
-            {loading ? <Spinner /> : <I d={ic.search} size={16} stroke="#1a1a1a" />}
-            {loading ? "Searching..." : "Find Orders"}
-          </button>
-        </div>
-        {err && <p className="text-red-500 text-sm mt-3 text-center">{err}</p>}
-      </div>
-
-      {orders.length > 0 && (
-        <div className="space-y-4">
-          {orders.map((order, idx) => (
-            <div key={order._id || idx} className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm hover:shadow-md transition-shadow" style={{ animation: `fadeIn .3s ease ${idx * 0.05}s` }}>
-              <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
-                <div>
-                  <p className="text-xs text-stone-400 mb-0.5">Order Number</p>
-                  <p className="font-bold text-lg text-stone-900">{order.orderNumber}</p>
-                </div>
-                <span className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize bg-${statusColor[order.orderStatus] || "stone"}-100 text-${statusColor[order.orderStatus] || "stone"}-700`}>
-                  {(order.orderStatus || "").replace(/_/g, " ")}
-                </span>
-              </div>
-
-              <div className="border-t border-stone-100 pt-3 mb-3">
-                <p className="font-semibold text-stone-800 text-sm mb-2">Items</p>
-                {order.items?.slice(0, 3).map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm mb-1 text-stone-600">
-                    <span>{item.name} <span className="text-stone-400">×{item.quantity}</span></span>
-                    <span className="font-semibold text-stone-800">{fmt(item.total)}</span>
-                  </div>
-                ))}
-                {order.items?.length > 3 && (
-                  <p className="text-xs text-stone-400 mt-1">+{order.items.length - 3} more items</p>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center pt-2 border-t border-stone-100">
-                <div>
-                  <p className="text-xs text-stone-400">Order Date</p>
-                  <p className="text-xs text-stone-600">{new Date(order.createdAt).toLocaleDateString("en-BD")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-stone-400">Total Amount</p>
-                  <p className="font-bold text-stone-900">{fmt(order.total)}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  // Navigate to track page with this order number
-                  window.location.href = `?page=track&order=${order.orderNumber}`;
-                  window.location.reload();
-                }}
-                className="mt-3 w-full py-2 rounded-xl border border-amber-200 text-amber-600 text-sm font-medium hover:bg-amber-50 btn-bounce transition-colors"
-              >
-                Track This Order
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── BLOG PAGE ────────────────────────────────────────────────────────────────
+// ─── BLOG PAGE (FIXED - no hooks violation) ────────────────────────────────────
 function BlogPage() {
   const { setPage } = useContext(NavCtx);
   const [selected, setSelected] = useState(null);
   const { data: raw, loading } = useAPI("/api/blogs?status=published&limit=12");
   const blogs = raw?.blogs || raw || [];
 
+  // Separate component for blog detail to avoid hooks violation
   if (selected) {
-    // Fetch full blog content when selected
-    const { data: fullBlog } = useAPI(selected._id ? `/api/blogs/${selected._id}` : null, [], !selected._id);
-    const blogData = fullBlog?.data || fullBlog || selected;
-
-    return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8" style={{ animation: "fadeIn .3s ease" }}>
-        <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-amber-600 mb-6 btn-bounce transition-colors font-medium">
-          <I d={ic.chev_l} size={16} /> Back to Blog
-        </button>
-        {blogData.coverImage?.url && CDN(blogData.coverImage.url) && (
-          <img src={CDN(blogData.coverImage.url)} alt={blogData.title} className="w-full h-56 sm:h-72 object-cover rounded-2xl mb-7" />
-        )}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {blogData.category && <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full">{blogData.category}</span>}
-          {blogData.tags && blogData.tags.slice(0, 2).map(tag => (
-            <span key={tag} className="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded-full">#{tag}</span>
-          ))}
-          <span className="text-stone-400 text-xs">{new Date(blogData.publishedAt || blogData.createdAt).toLocaleDateString("en-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
-          <span className="text-stone-400 text-xs flex items-center gap-1"><I d={ic.eye} size={12} /> {blogData.views || 0} views</span>
-        </div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">{blogData.title}</h1>
-        <div className="prose max-w-none text-stone-600 leading-relaxed text-sm sm:text-base"
-          dangerouslySetInnerHTML={{ __html: (blogData.body || blogData.content || "").replace(/\n/g, "<br>") }}
-        />
-        {blogData.author && (
-          <div className="mt-8 pt-6 border-t border-stone-100 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
-              {blogData.author.name?.[0] || "A"}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-stone-800">Written by {blogData.author.name}</p>
-              {blogData.author.bio && <p className="text-xs text-stone-400">{blogData.author.bio}</p>}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <BlogDetail blog={selected} onBack={() => setSelected(null)} />;
   }
 
   return (
@@ -1636,22 +1440,88 @@ function BlogPage() {
   );
 }
 
-// ─── CONTACT PAGE ─────────────────────────────────────────────────────────────
+// Blog Detail Component (separate component to avoid hooks violation)
+function BlogDetail({ blog, onBack }) {
+  // Fetch full blog content using _id
+  const { data: fullBlog, loading } = useAPI(blog._id ? `/api/blogs/${blog._id}` : null, [], !blog._id);
+  const blogData = fullBlog?.data || fullBlog || blog;
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8" style={{ animation: "fadeIn .3s ease" }}>
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-amber-600 mb-6 btn-bounce transition-colors font-medium">
+        <I d={ic.chev_l} size={16} /> Back to Blog
+      </button>
+
+      {loading ? (
+        <div className="space-y-4">
+          <Sk className="h-64 rounded-2xl" />
+          <Sk className="h-8 w-3/4" />
+          <Sk className="h-4 w-1/2" />
+          <Sk className="h-32" />
+        </div>
+      ) : (
+        <>
+          {blogData.coverImage?.url && CDN(blogData.coverImage.url) && (
+            <img src={CDN(blogData.coverImage.url)} alt={blogData.title} className="w-full h-56 sm:h-72 object-cover rounded-2xl mb-7" />
+          )}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {blogData.category && <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full">{blogData.category}</span>}
+            {blogData.tags && blogData.tags.slice(0, 2).map(tag => (
+              <span key={tag} className="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded-full">#{tag}</span>
+            ))}
+            <span className="text-stone-400 text-xs">{new Date(blogData.publishedAt || blogData.createdAt).toLocaleDateString("en-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
+            <span className="text-stone-400 text-xs flex items-center gap-1"><I d={ic.eye} size={12} /> {blogData.views || 0} views</span>
+          </div>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">{blogData.title}</h1>
+          <div className="prose max-w-none text-stone-600 leading-relaxed text-sm sm:text-base"
+            dangerouslySetInnerHTML={{ __html: (blogData.body || blogData.content || "").replace(/\n/g, "<br>") }}
+          />
+          {blogData.author && (
+            <div className="mt-8 pt-6 border-t border-stone-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
+                {blogData.author.name?.[0] || "A"}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-stone-800">Written by {blogData.author.name}</p>
+                {blogData.author.bio && <p className="text-xs text-stone-400">{blogData.author.bio}</p>}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── CONTACT PAGE (FIXED - category enum) ─────────────────────────────────────
 function ContactPage() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", orderNumber: "", message: "", type: "general" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", orderNumber: "", message: "", category: "general" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const toast = useToast();
+
+  // Map frontend categories to backend enum values
+  const categoryMap = {
+    general: "other",
+    product_quality: "quality_issue",
+    delivery: "delivery_issue",
+    refund: "refund_request",
+    other: "other"
+  };
 
   const submit = async () => {
     if (!form.name || !form.message) { toast("Name and message are required", "error"); return; }
     setLoading(true);
     try {
       const payload = {
-        customer: { name: form.name, email: form.email, phone: form.phone },
+        customer: {
+          name: form.name,
+          email: form.email || "guest@example.com",
+          phone: form.phone || "01700000000"
+        },
         orderNumber: form.orderNumber || null,
-        category: form.type === "general" ? "other" : form.type,
-        subject: form.type.replace(/_/g, " "),
+        category: categoryMap[form.category] || "other",
+        subject: form.category.replace(/_/g, " "),
         description: form.message,
       };
       const data = await apiFetch("/api/complaints", { method: "POST", body: JSON.stringify(payload) });
@@ -1702,11 +1572,21 @@ function ContactPage() {
           ))}
         </div>
         <div className="mb-4">
-          <label className="block text-xs font-semibold text-stone-500 mb-2">Type</label>
+          <label className="block text-xs font-semibold text-stone-500 mb-2">Issue Type</label>
           <div className="flex flex-wrap gap-2">
-            {["general", "product_quality", "delivery", "refund", "other"].map((t) => (
-              <button key={t} onClick={() => setForm((p) => ({ ...p, type: t }))} className={`px-3 py-1.5 rounded-lg border text-xs font-medium btn-bounce capitalize transition-all ${form.type === t ? "bg-amber-500 border-amber-500 text-stone-900" : "border-stone-200 text-stone-500 hover:border-amber-300"}`}>
-                {t.replace(/_/g, " ")}
+            {[
+              { value: "general", label: "General Inquiry" },
+              { value: "product_quality", label: "Product Quality" },
+              { value: "delivery", label: "Delivery Issue" },
+              { value: "refund", label: "Refund Request" },
+              { value: "other", label: "Other" }
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setForm((p) => ({ ...p, category: opt.value }))}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium btn-bounce capitalize transition-all ${form.category === opt.value ? "bg-amber-500 border-amber-500 text-stone-900" : "border-stone-200 text-stone-500 hover:border-amber-300"}`}
+              >
+                {opt.label}
               </button>
             ))}
           </div>
@@ -1866,7 +1746,6 @@ export default function App() {
       case "cart": return <CartPage />;
       case "checkout": return <CheckoutPage />;
       case "track": return <TrackPage />;
-      case "orders": return <OrdersPage />;
       case "blog": return <BlogPage />;
       case "contact": return <ContactPage />;
       default: return <HomePage />;
