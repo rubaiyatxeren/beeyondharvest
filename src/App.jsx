@@ -55,18 +55,60 @@ async function apiFetch(path, opts = {}) {
   return data;
 }
 
+// Cache for API requests to reduce duplicate calls
+const apiCache = new Map();
+let activeRequests = new Map();
+
 function useAPI(path, deps = [], skip = false) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(!skip);
   const [error, setError] = useState(null);
+
   useEffect(() => {
     if (skip || !path) return;
+
+    const cacheKey = `${path}`;
+
+    // Check cache first
+    if (apiCache.has(cacheKey)) {
+      setData(apiCache.get(cacheKey));
+      setLoading(false);
+      return;
+    }
+
+    // Check for active request to avoid duplicates
+    if (activeRequests.has(cacheKey)) {
+      activeRequests.get(cacheKey).then(setData).catch(setError).finally(() => setLoading(false));
+      return;
+    }
+
     setLoading(true);
-    apiFetch(path)
-      .then((d) => { setData(d.data ?? d); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
+    const request = apiFetch(path)
+      .then((d) => {
+        const result = d.data ?? d;
+        apiCache.set(cacheKey, result);
+        setData(result);
+        setLoading(false);
+        return result;
+      })
+      .catch((e) => {
+        setError(e.message);
+        setLoading(false);
+        throw e;
+      })
+      .finally(() => {
+        activeRequests.delete(cacheKey);
+      });
+
+    activeRequests.set(cacheKey, request);
   }, [path, ...deps]);
+
   return { data, loading, error, setData };
+}
+
+// Clear cache when needed (e.g., after mutations)
+function clearAPICache() {
+  apiCache.clear();
 }
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
@@ -86,10 +128,10 @@ function ToastProvider({ children }) {
             key={t.id}
             style={{ animation: "slideUp .3s ease" }}
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-2xl border pointer-events-auto ${t.type === "error"
-                ? "bg-red-50 text-red-700 border-red-200"
-                : t.type === "warn"
-                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              ? "bg-red-50 text-red-700 border-red-200"
+              : t.type === "warn"
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
               }`}
           >
             <span className="text-base">{t.type === "error" ? "✕" : t.type === "warn" ? "⚠" : "✓"}</span>
@@ -124,7 +166,7 @@ function CartProvider({ children }) {
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + i.price * i.qty, 0), [items]);
   const discount = coupon ? (coupon.type === "percent" ? Math.round(subtotal * coupon.value / 100) : coupon.value) : 0;
-  const deliveryCharge = delivery?.charge ?? 0;
+  const deliveryCharge = delivery?.amount ?? delivery?.charge ?? 0;
   const total = subtotal - discount + deliveryCharge;
   const count = items.reduce((s, i) => s + i.qty, 0);
 
@@ -153,9 +195,16 @@ const GlobalStyles = () => (
     ::-webkit-scrollbar { width:5px; height:5px; }
     ::-webkit-scrollbar-track { background:#f5f5f5; }
     ::-webkit-scrollbar-thumb { background:#d4d4d4; border-radius:4px; }
-    input:focus, select:focus, textarea:focus { outline:none; border-color:#d97706!important; box-shadow:0 0 0 3px rgba(217,119,6,.12); }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:#d97706!important; box-shadow:0 0 0 3px rgba(217,119,106,.12); }
     .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .prose { max-width: 100%; }
+    .prose p { margin-bottom: 1rem; line-height: 1.6; }
+    .prose img { max-width: 100%; border-radius: 1rem; margin: 1rem 0; }
+    .prose h1, .prose h2, .prose h3 { font-family: 'Playfair Display', serif; margin: 1.5rem 0 0.5rem; }
+    .prose h2 { font-size: 1.5rem; }
+    .prose h3 { font-size: 1.25rem; }
+    .prose ul, .prose ol { margin: 0.5rem 0 1rem 1.5rem; }
   `}</style>
 );
 
@@ -232,6 +281,7 @@ function Navbar() {
     { id: "shop", label: "Shop", icon: ic.grid },
     { id: "blog", label: "Blog", icon: ic.blog },
     { id: "track", label: "Track", icon: ic.truck },
+    { id: "orders", label: "My Orders", icon: ic.box },
     { id: "contact", label: "Contact", icon: ic.phone },
   ];
 
@@ -251,8 +301,8 @@ function Navbar() {
               key={l.id}
               onClick={() => setPage(l.id)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-all btn-bounce ${page === l.id || page.startsWith(l.id + ":")
-                  ? "bg-amber-50 text-amber-700 font-semibold"
-                  : "text-stone-500 hover:text-stone-800 hover:bg-stone-50"
+                ? "bg-amber-50 text-amber-700 font-semibold"
+                : "text-stone-500 hover:text-stone-800 hover:bg-stone-50"
                 }`}
             >
               {l.label}
@@ -392,26 +442,17 @@ function ProductCard({ product, onView, compact = false }) {
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 function HomePage() {
   const { setPage, setSearchQuery } = useContext(NavCtx);
-  const { data: banners } = useAPI("/api/banners");
   const { data: rawFeatured, loading: featLoading } = useAPI("/api/products?featured=true&limit=8");
   const { data: rawCategories } = useAPI("/api/categories");
   const cart = useCart();
   const toast = useToast();
-  const [bannerIdx, setBannerIdx] = useState(0);
 
   const featured = rawFeatured?.products || rawFeatured || [];
   const cats = rawCategories?.categories || rawCategories || [];
-  const activeBanners = banners?.banners || banners || [];
-
-  useEffect(() => {
-    if (!activeBanners.length) return;
-    const t = setInterval(() => setBannerIdx((p) => (p + 1) % activeBanners.length), 5000);
-    return () => clearInterval(t);
-  }, [activeBanners]);
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900 min-h-[540px] flex items-center">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 30% 50%, #f59e0b 0%, transparent 60%), radial-gradient(circle at 80% 20%, #d97706 0%, transparent 50%)" }} />
         <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-5" style={{ backgroundImage: "repeating-linear-gradient(45deg, #f59e0b 0, #f59e0b 1px, transparent 0, transparent 50%)", backgroundSize: "20px 20px" }} />
@@ -542,13 +583,13 @@ function HomePage() {
             <div className="font-display text-xl font-bold text-white mb-3">🍯 BeeHarvest</div>
             <p className="text-sm leading-relaxed text-stone-400">Pure honey, straight from the hive. Trusted by 50,000+ customers across Bangladesh.</p>
           </div>
-          {[{ title: "Quick Links", links: ["Home", "Shop", "Blog", "Track Order", "Contact"] },
+          {[{ title: "Quick Links", links: ["Home", "Shop", "Blog", "Track Order", "My Orders", "Contact"] },
           { title: "Policies", links: ["Returns", "Shipping", "Privacy Policy", "Terms of Service"] },
           { title: "Contact", links: ["📧 info@beeharvest.com", "📞 01XXXXXXXXX", "📍 Dhaka, Bangladesh"] }
           ].map((col) => (
             <div key={col.title}>
               <div className="font-semibold text-white mb-3 text-sm">{col.title}</div>
-              {col.links.map((l) => <div key={l} className="text-stone-400 text-sm mb-2 cursor-pointer hover:text-amber-400 transition-colors">{l}</div>)}
+              {col.links.map((l) => <div key={l} onClick={() => setPage(l.toLowerCase().replace(/ /g, "_"))} className="text-stone-400 text-sm mb-2 cursor-pointer hover:text-amber-400 transition-colors">{l}</div>)}
             </div>
           ))}
         </div>
@@ -880,18 +921,40 @@ function CartPage() {
   const toast = useToast();
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
+  const [selectedCity, setSelectedCity] = useState("");
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
 
   // Fetch delivery options
   const { data: rawDelivery } = useAPI("/api/delivery-charges");
-  const deliveryOptions = rawDelivery?.charges || rawDelivery || [];
+  const deliveryOptions = rawDelivery?.data || rawDelivery || [];
 
-  // Auto-select cheapest delivery option on load if none chosen
-  useEffect(() => {
-    if (!cart.delivery && deliveryOptions.length > 0) {
-      const sorted = [...deliveryOptions].sort((a, b) => (a.charge || 0) - (b.charge || 0));
-      cart.setDelivery(sorted[0]);
+  // Function to fetch delivery charge from backend API
+  const fetchDeliveryCharge = useCallback(async (city, subtotal) => {
+    if (!city) return null;
+    setDeliveryLoading(true);
+    try {
+      const url = `/api/delivery-charges/active?city=${encodeURIComponent(city)}&subtotal=${subtotal}`;
+      const data = await apiFetch(url);
+      return data.data;
+    } catch (error) {
+      console.error("Failed to fetch delivery charge:", error);
+      return null;
+    } finally {
+      setDeliveryLoading(false);
     }
-  }, [deliveryOptions.length]);
+  }, []);
+
+  // Update delivery when city or subtotal changes using backend API
+  useEffect(() => {
+    const updateDelivery = async () => {
+      if (!selectedCity) return;
+      const deliveryData = await fetchDeliveryCharge(selectedCity, cart.subtotal);
+      if (deliveryData) {
+        cart.setDelivery(deliveryData);
+      }
+    };
+    updateDelivery();
+  }, [selectedCity, cart.subtotal, fetchDeliveryCharge]);
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -921,6 +984,9 @@ function CartPage() {
       </button>
     </div>
   );
+
+  // Common Bangladeshi cities for delivery selection
+  const cities = ["Dhaka", "Chittagong", "Rajshahi", "Sylhet", "Khulna", "Barishal", "Rangpur", "Mymensingh", "Narayanganj", "Gazipur"];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -962,28 +1028,33 @@ function CartPage() {
 
         {/* Summary */}
         <div className="lg:sticky lg:top-20 space-y-4">
-          {/* Delivery options */}
-          {deliveryOptions.length > 0 && (
-            <div className="bg-white rounded-2xl border border-stone-100 p-5">
-              <h3 className="font-semibold text-stone-800 mb-4 text-sm flex items-center gap-2">
-                <I d={ic.truck} size={16} className="text-amber-600" /> Delivery Method
-              </h3>
-              <div className="space-y-2">
-                {deliveryOptions.map((d) => (
-                  <label key={d._id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${cart.delivery?._id === d._id ? "border-amber-300 bg-amber-50" : "border-stone-100 hover:border-amber-200"}`}>
-                    <input type="radio" name="delivery" className="accent-amber-500" checked={cart.delivery?._id === d._id} onChange={() => cart.setDelivery(d)} />
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-stone-800">{d.name}</div>
-                      <div className="text-xs text-stone-400">{d.estimatedDays || "2–3 business days"}</div>
-                    </div>
-                    <span className={`text-sm font-bold ${d.charge === 0 ? "text-emerald-600" : "text-stone-800"}`}>
-                      {d.charge === 0 ? "Free" : fmt(d.charge)}
-                    </span>
-                  </label>
-                ))}
+          {/* City Selection for Delivery */}
+          <div className="bg-white rounded-2xl border border-stone-100 p-5">
+            <h3 className="font-semibold text-stone-800 mb-3 text-sm flex items-center gap-2">
+              <I d={ic.map} size={16} className="text-amber-600" /> Delivery Location
+            </h3>
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm bg-stone-50"
+            >
+              <option value="">Select your city</option>
+              {cities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+            {deliveryLoading && (
+              <div className="mt-2 text-xs text-stone-400 flex items-center gap-1">
+                <Spinner /> Calculating delivery...
               </div>
-            </div>
-          )}
+            )}
+            {cart.delivery && !deliveryLoading && (
+              <div className={`mt-3 text-xs flex items-center gap-1.5 ${cart.delivery.amount === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                <I d={ic.truck} size={12} />
+                {cart.delivery.amount === 0 ? 'Free Delivery' : `Delivery Fee: ${fmt(cart.delivery.amount)}`}
+              </div>
+            )}
+          </div>
 
           {/* Coupon */}
           <div className="bg-white rounded-2xl border border-stone-100 p-5">
@@ -1033,19 +1104,18 @@ function CartPage() {
 }
 
 // ─── DELIVERY CHARGE LOGIC ─────────────────────────────────────────────────────
-// Computes delivery charge based on city/division + subtotal from available options
 function computeDeliveryCharge(deliveryOptions, city, subtotal) {
-  if (!deliveryOptions?.length) return { charge: 0, name: "Standard Delivery" };
-  // Check free delivery threshold
-  const freeOpt = deliveryOptions.find(d => d.freeAbove && subtotal >= d.freeAbove);
-  if (freeOpt) return { ...freeOpt, charge: 0 };
-  // Try to match by city/division
+  if (!deliveryOptions?.length) return { amount: 0, name: "Standard Delivery" };
+  const freeOpt = deliveryOptions.find(d => d.minOrderAmount && subtotal >= d.minOrderAmount);
+  if (freeOpt) return { ...freeOpt, amount: 0 };
   const dhakaCities = ["dhaka", "narayanganj", "gazipur", "manikganj"];
   const cityLower = (city || "").toLowerCase();
   const isDhaka = dhakaCities.some(c => cityLower.includes(c));
-  // Sort: lowest charge for Dhaka, highest for outside
-  const sorted = [...deliveryOptions].sort((a, b) => (a.charge || 0) - (b.charge || 0));
-  return isDhaka ? sorted[0] : (sorted[sorted.length - 1] || sorted[0]);
+  const insideCharge = deliveryOptions.find(d => d.name === "inside_dhaka");
+  const outsideCharge = deliveryOptions.find(d => d.name === "outside_dhaka");
+  if (isDhaka && insideCharge) return insideCharge;
+  if (!isDhaka && outsideCharge) return outsideCharge;
+  return deliveryOptions[0] || { amount: 60, name: "Standard Delivery" };
 }
 
 // ─── CHECKOUT PAGE ────────────────────────────────────────────────────────────
@@ -1055,8 +1125,9 @@ function CheckoutPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
   const { data: rawDelivery } = useAPI("/api/delivery-charges");
-  const deliveryOptions = rawDelivery?.charges || rawDelivery || [];
+  const deliveryOptions = rawDelivery?.data || rawDelivery || [];
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "",
@@ -1065,12 +1136,31 @@ function CheckoutPage() {
   });
   const [errors, setErrors] = useState({});
 
-  // Auto-compute delivery charge when city changes
+  const fetchDeliveryCharge = useCallback(async (city, subtotal) => {
+    if (!city) return null;
+    setDeliveryLoading(true);
+    try {
+      const url = `/api/delivery-charges/active?city=${encodeURIComponent(city)}&subtotal=${subtotal}`;
+      const data = await apiFetch(url);
+      return data.data;
+    } catch (error) {
+      console.error("Failed to fetch delivery charge:", error);
+      return null;
+    } finally {
+      setDeliveryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!form.city || !deliveryOptions.length) return;
-    const computed = computeDeliveryCharge(deliveryOptions, form.city, cart.subtotal);
-    cart.setDelivery(computed);
-  }, [form.city, form.division, cart.subtotal, deliveryOptions.length]);
+    const updateDelivery = async () => {
+      if (!form.city) return;
+      const deliveryData = await fetchDeliveryCharge(form.city, cart.subtotal);
+      if (deliveryData) {
+        cart.setDelivery(deliveryData);
+      }
+    };
+    updateDelivery();
+  }, [form.city, cart.subtotal, fetchDeliveryCharge]);
 
   const upd = (k, v) => { setForm((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: "" })); };
 
@@ -1147,7 +1237,6 @@ function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
         <div className="space-y-5">
-          {/* Customer Info */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
             <h3 className="font-semibold text-stone-800 mb-5 flex items-center gap-2"><span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">1</span> Customer Information</h3>
             <div className="flex flex-wrap gap-4">
@@ -1157,12 +1246,16 @@ function CheckoutPage() {
             </div>
           </div>
 
-          {/* Delivery Address */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
             <h3 className="font-semibold text-stone-800 mb-5 flex items-center gap-2">
               <span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">2</span>
               Delivery Address
-              {cart.delivery && <span className="ml-auto text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium">Delivery: {cart.delivery.charge === 0 ? "Free" : fmt(cart.delivery.charge)} ({cart.delivery.name})</span>}
+              {deliveryLoading && <span className="ml-auto text-xs text-stone-400"><Spinner /> Calculating...</span>}
+              {cart.delivery && !deliveryLoading && (
+                <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${cart.deliveryCharge === 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                  Delivery: {cart.deliveryCharge === 0 ? "Free" : fmt(cart.deliveryCharge)} ({cart.delivery.name?.replace(/_/g, " ")})
+                </span>
+              )}
             </h3>
             <div className="flex flex-wrap gap-4">
               <Field label="Street / House Address" k="street" placeholder="House #, Road #, Area" required />
@@ -1173,7 +1266,6 @@ function CheckoutPage() {
             </div>
           </div>
 
-          {/* Payment */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
             <h3 className="font-semibold text-stone-800 mb-5 flex items-center gap-2"><span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">3</span> Payment Method</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1192,7 +1284,6 @@ function CheckoutPage() {
           </div>
         </div>
 
-        {/* Order Summary */}
         <div className="lg:sticky lg:top-20 bg-white rounded-2xl border border-stone-100 p-5">
           <h3 className="font-semibold text-stone-800 mb-4">Order Summary</h3>
           <div className="max-h-60 overflow-y-auto space-y-3 mb-4">
@@ -1341,28 +1432,157 @@ function TrackPage() {
   );
 }
 
+// ─── ORDERS PAGE (Get all orders by phone number) ───────────────────────────────
+function OrdersPage() {
+  const [phone, setPhone] = useState("");
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const fetchOrders = async () => {
+    if (!phone.trim()) { setErr("Please enter your phone number"); return; }
+    if (!phone.match(/^01[3-9]\d{8}$/)) { setErr("Enter valid BD phone number (01XXXXXXXXX)"); return; }
+    setLoading(true); setErr(""); setOrders([]);
+    try {
+      const data = await apiFetch(`/api/orders/customer/${encodeURIComponent(phone)}`);
+      setOrders(data.data || data);
+      if (!data.data?.length) setErr("No orders found for this number.");
+    } catch (e) {
+      setErr(e.message || "Failed to fetch orders. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statusColor = { pending: "amber", confirmed: "blue", processing: "violet", shipped: "cyan", delivered: "emerald", cancelled: "red" };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      <div className="text-center mb-10">
+        <div className="text-5xl mb-3">📋</div>
+        <h1 className="font-display text-3xl font-bold text-stone-900 mb-2">My Orders</h1>
+        <p className="text-stone-500">Enter your phone number to see all your orders</p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-stone-100 p-6 mb-8 shadow-sm">
+        <div className="flex gap-3 flex-col sm:flex-row">
+          <div className="flex-1 relative">
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && fetchOrders()}
+              placeholder="Enter your phone number (e.g., 017XXXXXXXX)"
+              className="w-full pl-10 pr-4 py-3.5 rounded-xl border border-stone-200 bg-stone-50 text-sm font-medium"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2"><I d={ic.phone} size={17} className="text-stone-400" /></div>
+          </div>
+          <button onClick={fetchOrders} disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold px-6 py-3.5 rounded-xl btn-bounce shadow-md shadow-amber-200 transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-60 min-w-[120px]">
+            {loading ? <Spinner /> : <I d={ic.search} size={16} stroke="#1a1a1a" />}
+            {loading ? "Searching..." : "Find Orders"}
+          </button>
+        </div>
+        {err && <p className="text-red-500 text-sm mt-3 text-center">{err}</p>}
+      </div>
+
+      {orders.length > 0 && (
+        <div className="space-y-4">
+          {orders.map((order, idx) => (
+            <div key={order._id || idx} className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm hover:shadow-md transition-shadow" style={{ animation: `fadeIn .3s ease ${idx * 0.05}s` }}>
+              <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+                <div>
+                  <p className="text-xs text-stone-400 mb-0.5">Order Number</p>
+                  <p className="font-bold text-lg text-stone-900">{order.orderNumber}</p>
+                </div>
+                <span className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize bg-${statusColor[order.orderStatus] || "stone"}-100 text-${statusColor[order.orderStatus] || "stone"}-700`}>
+                  {(order.orderStatus || "").replace(/_/g, " ")}
+                </span>
+              </div>
+
+              <div className="border-t border-stone-100 pt-3 mb-3">
+                <p className="font-semibold text-stone-800 text-sm mb-2">Items</p>
+                {order.items?.slice(0, 3).map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm mb-1 text-stone-600">
+                    <span>{item.name} <span className="text-stone-400">×{item.quantity}</span></span>
+                    <span className="font-semibold text-stone-800">{fmt(item.total)}</span>
+                  </div>
+                ))}
+                {order.items?.length > 3 && (
+                  <p className="text-xs text-stone-400 mt-1">+{order.items.length - 3} more items</p>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-stone-100">
+                <div>
+                  <p className="text-xs text-stone-400">Order Date</p>
+                  <p className="text-xs text-stone-600">{new Date(order.createdAt).toLocaleDateString("en-BD")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-stone-400">Total Amount</p>
+                  <p className="font-bold text-stone-900">{fmt(order.total)}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  // Navigate to track page with this order number
+                  window.location.href = `?page=track&order=${order.orderNumber}`;
+                  window.location.reload();
+                }}
+                className="mt-3 w-full py-2 rounded-xl border border-amber-200 text-amber-600 text-sm font-medium hover:bg-amber-50 btn-bounce transition-colors"
+              >
+                Track This Order
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── BLOG PAGE ────────────────────────────────────────────────────────────────
 function BlogPage() {
   const { setPage } = useContext(NavCtx);
   const [selected, setSelected] = useState(null);
-  const { data: raw, loading } = useAPI("/api/blogs?status=published&limit=9");
+  const { data: raw, loading } = useAPI("/api/blogs?status=published&limit=12");
   const blogs = raw?.blogs || raw || [];
 
   if (selected) {
+    // Fetch full blog content when selected
+    const { data: fullBlog } = useAPI(selected._id ? `/api/blogs/${selected._id}` : null, [], !selected._id);
+    const blogData = fullBlog?.data || fullBlog || selected;
+
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8" style={{ animation: "fadeIn .3s ease" }}>
         <button onClick={() => setSelected(null)} className="flex items-center gap-1.5 text-sm text-stone-500 hover:text-amber-600 mb-6 btn-bounce transition-colors font-medium">
           <I d={ic.chev_l} size={16} /> Back to Blog
         </button>
-        {selected.coverImage && CDN(selected.coverImage) && (
-          <img src={CDN(selected.coverImage)} alt={selected.title} className="w-full h-56 sm:h-72 object-cover rounded-2xl mb-7" />
+        {blogData.coverImage?.url && CDN(blogData.coverImage.url) && (
+          <img src={CDN(blogData.coverImage.url)} alt={blogData.title} className="w-full h-56 sm:h-72 object-cover rounded-2xl mb-7" />
         )}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {selected.category && <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full">{selected.category}</span>}
-          <span className="text-stone-400 text-xs">{new Date(selected.publishedAt || selected.createdAt).toLocaleDateString("en-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
+          {blogData.category && <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full">{blogData.category}</span>}
+          {blogData.tags && blogData.tags.slice(0, 2).map(tag => (
+            <span key={tag} className="bg-stone-100 text-stone-600 text-xs px-2 py-1 rounded-full">#{tag}</span>
+          ))}
+          <span className="text-stone-400 text-xs">{new Date(blogData.publishedAt || blogData.createdAt).toLocaleDateString("en-BD", { year: "numeric", month: "long", day: "numeric" })}</span>
+          <span className="text-stone-400 text-xs flex items-center gap-1"><I d={ic.eye} size={12} /> {blogData.views || 0} views</span>
         </div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">{selected.title}</h1>
-        <div className="prose max-w-none text-stone-600 leading-relaxed text-sm sm:text-base" dangerouslySetInnerHTML={{ __html: selected.content?.replace(/\n/g, "<br>") }} />
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-4">{blogData.title}</h1>
+        <div className="prose max-w-none text-stone-600 leading-relaxed text-sm sm:text-base"
+          dangerouslySetInnerHTML={{ __html: (blogData.body || blogData.content || "").replace(/\n/g, "<br>") }}
+        />
+        {blogData.author && (
+          <div className="mt-8 pt-6 border-t border-stone-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
+              {blogData.author.name?.[0] || "A"}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-stone-800">Written by {blogData.author.name}</p>
+              {blogData.author.bio && <p className="text-xs text-stone-400">{blogData.author.bio}</p>}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1393,8 +1613,8 @@ function BlogPage() {
           {blogs.map((blog) => (
             <div key={blog._id} onClick={() => setSelected(blog)} className="card-hover bg-white rounded-2xl border border-stone-100 overflow-hidden cursor-pointer">
               <div className="relative h-44 bg-amber-50 overflow-hidden">
-                {CDN(blog.coverImage) ? (
-                  <img src={CDN(blog.coverImage)} alt={blog.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                {blog.coverImage?.url && CDN(blog.coverImage.url) ? (
+                  <img src={CDN(blog.coverImage.url)} alt={blog.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-5xl">🍯</div>
                 )}
@@ -1402,7 +1622,7 @@ function BlogPage() {
               <div className="p-5">
                 {blog.category && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full mb-2 inline-block">{blog.category}</span>}
                 <h3 className="font-display font-semibold text-stone-800 text-base line-clamp-2 mb-2 leading-snug">{blog.title}</h3>
-                <p className="text-stone-400 text-sm line-clamp-2 mb-4">{blog.excerpt || (blog.content || "").slice(0, 100)}…</p>
+                <p className="text-stone-400 text-sm line-clamp-2 mb-4">{blog.excerpt || (blog.body || "").replace(/<[^>]*>/g, "").slice(0, 100)}…</p>
                 <div className="flex justify-between text-xs text-stone-400">
                   <span>{new Date(blog.publishedAt || blog.createdAt).toLocaleDateString()}</span>
                   <span>{blog.likes || 0} ❤️ · {blog.views || 0} 👁</span>
@@ -1427,13 +1647,18 @@ function ContactPage() {
     if (!form.name || !form.message) { toast("Name and message are required", "error"); return; }
     setLoading(true);
     try {
-      const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v));
-      const res = await fetch(`${API}/api/complaints`, { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Failed");
+      const payload = {
+        customer: { name: form.name, email: form.email, phone: form.phone },
+        orderNumber: form.orderNumber || null,
+        category: form.type === "general" ? "other" : form.type,
+        subject: form.type.replace(/_/g, " "),
+        description: form.message,
+      };
+      const data = await apiFetch("/api/complaints", { method: "POST", body: JSON.stringify(payload) });
       setSuccess(true);
-    } catch {
-      toast("Failed to submit. Please try again.", "error");
+      toast("Message sent successfully! We'll get back to you soon.");
+    } catch (error) {
+      toast(error.message || "Failed to submit. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -1469,7 +1694,7 @@ function ContactPage() {
       <div className="bg-white rounded-2xl border border-stone-100 p-6">
         <h3 className="font-semibold text-stone-800 mb-5">Submit a Complaint or Inquiry</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          {[["name", "Full Name", true, "text"], ["email", "Email", false, "email"], ["phone", "Phone", false, "text"], ["orderNumber", "Order Number (optional)", false, "text"]].map(([k, l, req, t]) => (
+          {[["name", "Full Name", true, "text"], ["email", "Email", false, "email"], ["phone", "Phone", false, "tel"], ["orderNumber", "Order Number (optional)", false, "text"]].map(([k, l, req, t]) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-stone-500 mb-1.5">{l}{req && " *"}</label>
               <input type={t} value={form[k]} onChange={(e) => setForm((p) => ({ ...p, [k]: e.target.value }))} placeholder={l} className="w-full px-3 py-3 rounded-xl border border-stone-200 bg-stone-50 text-sm" />
@@ -1528,7 +1753,6 @@ function Chatbot() {
     <div className="fixed bottom-6 right-6 z-[9990]">
       {open && (
         <div className="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden" style={{ animation: "popIn .25s ease" }}>
-          {/* Header */}
           <div className="bg-stone-900 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-400 rounded-full flex items-center justify-center text-lg">🐝</div>
@@ -1544,7 +1768,6 @@ function Chatbot() {
               <I d={ic.x} size={16} />
             </button>
           </div>
-          {/* Messages */}
           <div className="h-64 overflow-y-auto p-4 bg-stone-50 space-y-3">
             {msgs.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -1566,7 +1789,6 @@ function Chatbot() {
             )}
             <div ref={endRef} />
           </div>
-          {/* Input */}
           <div className="p-3 bg-white border-t border-stone-100 flex gap-2">
             <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Type a message…" className="flex-1 px-3 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-sm" />
             <button onClick={send} disabled={loading} className="bg-amber-500 hover:bg-amber-400 text-stone-900 p-2.5 rounded-xl btn-bounce transition-colors disabled:opacity-60">
@@ -1591,26 +1813,37 @@ export default function App() {
   const [page, setPageRaw] = useState("home");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // URL param sync
+  useEffect(() => {
+    if (window.location.search && !window.location.search.includes('page=')) {
+      const url = new URL(window.location.href);
+      url.search = '';
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const p = params.get("page");
     const id = params.get("id");
+    const order = params.get("order");
     if (p === "product" && id) setPageRaw(`product:${id}`);
+    else if (order) setPageRaw("track");
     else if (p) setPageRaw(p);
   }, []);
 
   const setPage = useCallback((p) => {
     setPageRaw(p);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    // Sync URL
     const params = new URLSearchParams();
-    if (p.startsWith("product:")) { params.set("page", "product"); params.set("id", p.split(":")[1]); }
+    if (p.startsWith("product:")) {
+      params.set("page", "product");
+      params.set("id", p.split(":")[1]);
+    }
     else if (p !== "home") params.set("page", p);
-    window.history.pushState({}, "", params.toString() ? `?${params}` : window.location.pathname);
+    const newUrl = params.toString() ? `?${params}` : window.location.pathname;
+    window.history.pushState({}, "", newUrl);
   }, []);
 
-  // Browser back/forward
   useEffect(() => {
     const handler = () => {
       const params = new URLSearchParams(window.location.search);
@@ -1633,6 +1866,7 @@ export default function App() {
       case "cart": return <CartPage />;
       case "checkout": return <CheckoutPage />;
       case "track": return <TrackPage />;
+      case "orders": return <OrdersPage />;
       case "blog": return <BlogPage />;
       case "contact": return <ContactPage />;
       default: return <HomePage />;
