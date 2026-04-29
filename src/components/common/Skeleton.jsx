@@ -1,0 +1,1 @@
+export const Sk = ({ className = "" }) => <div className={`shimmer rounded-xl ${className}`} />;
