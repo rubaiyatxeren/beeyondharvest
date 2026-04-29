@@ -91,7 +91,7 @@ const HomePage = () => {
                             View All <I d={ic.chev_r} size={16} />
                         </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {featLoading ? Array.from({ length: 8 }).map((_, i) => (
                             <div key={i} className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
                                 <Sk className="h-48 rounded-none" />
