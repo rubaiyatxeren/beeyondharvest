@@ -179,7 +179,13 @@ const ProductPage = ({ productId }) => {
                             </>
                         )}
                     </div>
-                    <p className="text-stone-600 leading-relaxed mb-5 text-sm">{p.description || "Premium quality honey, pure and natural."}</p>
+                    <p className="text-stone-600 leading-relaxed mb-5 text-sm">
+                        {p.description
+                            ? p.description.length > 200
+                                ? p.description.substring(0, 200) + "..."
+                                : p.description
+                            : "Premium quality honey, pure and natural."}
+                    </p>
 
                     <div className="mb-5">
                         <span className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full ${p.stock > 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
