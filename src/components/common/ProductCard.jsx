@@ -47,7 +47,9 @@ export const ProductCard = ({ product, onView }) => {
             </div>
 
             <div className="p-4">
-                <p className="text-xs text-amber-600 font-semibold mb-1">{product.category?.name || "Honey"}</p>
+                <p className="text-[11px] uppercase tracking-wider text-amber-500 font-medium mb-2">
+                    ✦ {product.category?.name || "Honey"}
+                </p>
                 <h3 className="font-display font-semibold text-stone-800 text-[15px] line-clamp-2 mb-2 leading-snug">{product.name}</h3>
 
                 <div className="flex items-center gap-2 mb-3">
