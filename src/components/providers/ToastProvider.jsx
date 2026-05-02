@@ -1,27 +1,56 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useRef,
+    useState
+} from "react";
 
 export const ToastCtx = createContext(null);
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
+    const timers = useRef(new Map());
 
-    const add = useCallback((msg, type = "success") => {
-        const id = Date.now();
-        setToasts((p) => [...p, { id, msg, type }]);
-        setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3500);
+    const add = useCallback((msg, type = "success", duration = 3500) => {
+        const id = Date.now() + Math.random();
+
+        setToasts(prev => [...prev, { id, msg, type }]);
+
+        const timer = setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+            timers.current.delete(id);
+        }, duration);
+
+        timers.current.set(id, timer);
+    }, []);
+
+    const remove = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+
+        if (timers.current.has(id)) {
+            clearTimeout(timers.current.get(id));
+            timers.current.delete(id);
+        }
     }, []);
 
     return (
         <ToastCtx.Provider value={add}>
             {children}
+
             <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
-                {toasts.map((t) => (
-                    <div key={t.id} style={{ animation: "slideUp .3s ease" }}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-2xl border pointer-events-auto ${t.type === "error" ? "bg-red-50 text-red-700 border-red-200" :
-                                t.type === "warn" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                    "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            }`}>
-                        <span className="text-base">
+                {toasts.map(t => (
+                    <div
+                        key={t.id}
+                        className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold shadow-lg pointer-events-auto
+                        ${t.type === "error"
+                                ? "bg-red-50 text-red-700"
+                                : t.type === "warn"
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-emerald-50 text-emerald-700"
+                            }`}
+                    >
+                        <span>
                             {t.type === "error" ? "✕" : t.type === "warn" ? "⚠" : "✓"}
                         </span>
                         {t.msg}
@@ -33,9 +62,7 @@ export function ToastProvider({ children }) {
 }
 
 export const useToast = () => {
-    const context = useContext(ToastCtx);
-    if (!context) {
-        throw new Error('useToast must be used within a ToastProvider');
-    }
-    return context;
+    const ctx = useContext(ToastCtx);
+    if (!ctx) throw new Error("useToast must be used within ToastProvider");
+    return ctx;
 };
