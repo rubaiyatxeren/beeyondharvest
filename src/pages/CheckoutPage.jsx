@@ -81,7 +81,8 @@ const CheckoutPage = () => {
         const e = {};
         if (!form.name.trim()) e.name = 'Name required';
         if (!form.phone.match(/^01[3-9]\d{8}$/)) e.phone = 'Enter valid BD phone (01XXXXXXXXX)';
-        if (form.email && !form.email.includes('@')) e.email = 'Invalid email';
+        if (!form.email.trim()) e.email = 'Email required';
+        else if (!form.email.includes('@')) e.email = 'Invalid email';
         if (!form.street.trim()) e.street = 'Street address required';
         if (!form.city.trim()) e.city = 'City required';
         if (!form.zipCode.trim()) e.zipCode = 'Zip code required';
@@ -164,7 +165,7 @@ const CheckoutPage = () => {
                         <div className="flex flex-wrap gap-4">
                             <FormField label="Full Name" k="name" value={form.name} error={errors.name} onChange={upd} placeholder="Rahim Hossain" required />
                             <FormField label="Phone Number" k="phone" value={form.phone} error={errors.phone} onChange={upd} placeholder="01XXXXXXXXX" required half />
-                            <FormField label="Email Address" k="email" type="email" value={form.email} error={errors.email} onChange={upd} placeholder="email@example.com" half />
+                            <FormField label="Email Address" k="email" type="email" value={form.email} error={errors.email} onChange={upd} placeholder="email@example.com" required half />
                         </div>
                     </div>
 
@@ -183,31 +184,109 @@ const CheckoutPage = () => {
                         </div>
                     </div>
 
-                    {/* Payment */}
-                    <div className="bg-white rounded-2xl border border-stone-100 p-6">
-                        <h3 className="font-semibold text-stone-800 mb-5 flex items-center gap-2">
-                            <span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                    {/* Payment Section */}
+                    <div className="bg-white rounded-3xl border border-stone-100 p-6 shadow-sm">
+                        <h3 className="font-semibold text-stone-800 mb-6 flex items-center gap-2">
+                            <span className="w-7 h-7 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                3
+                            </span>
                             Payment Method
                         </h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                        {/* COD */}
+                        <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all
+        ${form.paymentMethod === 'cash_on_delivery'
+                                ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md'
+                                : 'border-stone-200 hover:border-amber-200'}`}
+                        >
+                            <input
+                                type="radio"
+                                name="pay"
+                                value="cash_on_delivery"
+                                checked={form.paymentMethod === 'cash_on_delivery'}
+                                onChange={(e) => upd('paymentMethod', e.target.value)}
+                                className="sr-only"
+                            />
+
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl border shadow-sm">
+                                💵
+                            </div>
+
+                            <div className="flex-1">
+                                <div className="font-bold text-stone-800 text-sm">
+                                    Cash on Delivery
+                                </div>
+                                <div className="text-xs text-stone-400 mt-0.5">
+                                    Pay when your order arrives
+                                </div>
+                                <span className="inline-block mt-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                    Available
+                                </span>
+                            </div>
+
+                            <div className="w-5 h-5 rounded-full border-2 border-amber-500 flex items-center justify-center">
+                                {form.paymentMethod === 'cash_on_delivery' && (
+                                    <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                                )}
+                            </div>
+                        </label>
+
+                        {/* Coming Soon */}
+                        <p className="text-[11px] font-semibold text-stone-400 uppercase tracking-widest mt-6 mb-3">
+                            Digital Payments (Coming Soon)
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-3">
                             {[
-                                { v: 'cash_on_delivery', l: 'Cash on Delivery', i: '💵' },
-                                { v: 'bkash', l: 'bKash', i: '🔴' },
-                                { v: 'nagad', l: 'Nagad', i: '🟠' },
-                                { v: 'rocket', l: 'Rocket', i: '🟣' },
+                                {
+                                    l: "bKash",
+                                    img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRw9NHMbueHMys-2mBENPIb28PNh3myV_Z3fw&s",
+                                    bg: "bg-pink-50",
+                                    border: "border-pink-100"
+                                },
+                                {
+                                    l: "Nagad",
+                                    img: "https://freelogopng.com/images/all_img/1679248787Nagad-Logo.png",
+                                    bg: "bg-orange-50",
+                                    border: "border-orange-100"
+                                },
+                                {
+                                    l: "Rocket",
+                                    img: "https://www.jvectors.com/upload/photos/2023/07/KmEbbj7Jrw8PVCNfS9fX_15_89bd0ac8863cc7850cf2eb5b0403f6a5_jvectors.webp?updated=1",
+                                    bg: "bg-purple-50",
+                                    border: "border-purple-100"
+                                }
                             ].map((m) => (
-                                <label key={m.v} className={`flex flex-col items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all btn-bounce ${form.paymentMethod === m.v ? 'border-amber-400 bg-amber-50' : 'border-stone-200 hover:border-amber-200'}`}>
-                                    <input type="radio" name="pay" value={m.v} checked={form.paymentMethod === m.v} onChange={(e) => upd('paymentMethod', e.target.value)} className="sr-only" />
-                                    <span className="text-2xl">{m.i}</span>
-                                    <span className="text-xs font-semibold text-stone-700 text-center">{m.l}</span>
-                                </label>
+                                <div
+                                    key={m.l}
+                                    className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border ${m.border} ${m.bg} cursor-not-allowed`}
+                                >
+                                    <img
+                                        src={m.img}
+                                        alt={m.l}
+                                        className="h-8 object-contain"
+                                        loading="lazy"
+                                    />
+                                    <span className="text-[10px] font-bold text-stone-400 bg-white/80 border px-2 py-0.5 rounded-full">
+                                        Soon
+                                    </span>
+                                </div>
                             ))}
                         </div>
-                        <div className="mt-4">
-                            <label className="block text-xs font-semibold text-stone-500 mb-1.5">Special Instructions (optional)</label>
-                            <textarea value={form.notes} onChange={(e) => upd('notes', e.target.value)} rows={3}
-                                placeholder="Any delivery instructions…"
-                                className="w-full px-3 py-3 rounded-xl border border-stone-200 bg-stone-50 text-sm resize-none" />
+
+                        {/* Notes */}
+                        <div className="mt-6">
+                            <label className="block text-xs font-semibold text-stone-500 mb-2 uppercase tracking-widest">
+                                Special Instructions <span className="text-stone-300 normal-case">(optional)</span>
+                            </label>
+
+                            <textarea
+                                value={form.notes}
+                                onChange={(e) => upd("notes", e.target.value)}
+                                rows={3}
+                                placeholder="Any delivery instructions..."
+                                className="w-full px-4 py-3 rounded-2xl border border-stone-200 bg-stone-50 text-sm resize-none focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition"
+                            />
                         </div>
                     </div>
                 </div>
