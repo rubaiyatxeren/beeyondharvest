@@ -1,9 +1,17 @@
 export const API = "https://beeyond-harvest-admin.onrender.com";
 
 export const CITIES = [
-  "Dhaka", "Chittagong", "Rajshahi", "Sylhet", "Khulna",
-  "Barishal", "Rangpur", "Mymensingh", "Comilla", "Narayanganj",
-  "Gazipur", "Cox's Bazar", "Jessore", "Bogra", "Dinajpur"
+  "Bagerhat","Bandarban","Barguna","Barishal","Bhola","Bogra","Brahmanbaria",
+  "Chandpur","Chapainawabganj","Chattogram","Chuadanga","Comilla","Cox's Bazar",
+  "Dhaka","Dinajpur","Faridpur","Feni","Gaibandha","Gazipur","Gopalganj",
+  "Habiganj","Jamalpur","Jessore","Jhalokati","Jhenaidah","Joypurhat",
+  "Khagrachhari","Khulna","Kishoreganj","Kurigram","Kushtia",
+  "Lakshmipur","Lalmonirhat","Madaripur","Magura","Manikganj","Meherpur",
+  "Moulvibazar","Munshiganj","Mymensingh","Naogaon","Narail","Narayanganj",
+  "Narsingdi","Natore","Netrokona","Nilphamari","Noakhali",
+  "Pabna","Panchagarh","Patuakhali","Pirojpur","Rajbari","Rajshahi",
+  "Rangamati","Rangpur","Satkhira","Shariatpur","Sherpur",
+  "Sirajganj","Sunamganj","Sylhet","Tangail","Thakurgaon"
 ];
 
 export const STATUS_LABELS = {

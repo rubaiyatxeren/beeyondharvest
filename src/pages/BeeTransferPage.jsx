@@ -154,9 +154,28 @@ const BeeTransferPage = () => {
             const res = await fetch(`${API}/api/transfers/${receiveTransferId}/files/${file._id}/download`, { method: "POST" });
             const data = await res.json();
             if (!data.success) throw new Error(data.message);
-            window.open(data.data.downloadUrl, "_blank");
+
+            const fileRes = await fetch(data.data.downloadUrl);
+            const blob = await fileRes.blob();
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = file.originalName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
             toast(`Downloading ${file.originalName}...`, "success");
-            setTimeout(() => fetchTransfer(), 1000);
+
+            // Optimistically increment download count locally
+            setTransferData(prev => ({
+                ...prev,
+                files: prev.files.map(f =>
+                    f._id === file._id ? { ...f, downloadCount: f.downloadCount + 1 } : f
+                )
+            }));
         } catch (err) { toast(err.message || "Failed to download file", "error"); }
         finally { setDownloadingFile(null); }
     };
