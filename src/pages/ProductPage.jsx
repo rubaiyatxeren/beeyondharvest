@@ -1,13 +1,3 @@
-/**
- * ProductPage.jsx  (refactored)
- * ─────────────────────────────────────────────────────────────
- * Widgets consumed:
- *   RatingBlock   ← widgets/RatingBlock
- *   StockBadge    ← widgets/HoneyBadge
- *   DiscountBadge ← widgets/HoneyBadge
- * ─────────────────────────────────────────────────────────────
- */
-
 import React, { useState } from 'react';
 import { I, ic } from '../components/common/Icons';
 import { Sk } from '../components/common/Skeleton';
@@ -19,6 +9,17 @@ import { useAPI } from '../hooks/useAPI';
 import { CDN, fmt } from '../utils/helpers';
 import { DiscountBadge, StockBadge } from '../widgets/HoneyBadge';
 import { RatingBlock } from '../widgets/RatingBlock';
+import { ShareDrawer } from '../widgets/ShareDrawer'; // ← new
+import { WeightPill } from '../widgets/WeightPill'; // ← new
+
+const ShareIcon = () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+);
 
 const ProductPage = ({ productId }) => {
     const { setPage } = useNav();
@@ -29,6 +30,7 @@ const ProductPage = ({ productId }) => {
     const [qty, setQty] = useState(1);
     const [activeImg, setActiveImg] = useState(0);
     const [tab, setTab] = useState('description');
+    const [shareOpen, setShareOpen] = useState(false);
 
     const p = raw?.product || raw;
     const reviews = rawReviews?.reviews || rawReviews || [];
@@ -89,36 +91,52 @@ const ProductPage = ({ productId }) => {
                     </span>
                     <h1 className="font-display text-2xl sm:text-3xl font-bold text-stone-900 mb-3 leading-tight">{p.name}</h1>
 
-                    {/* ── Rating widget ── */}
-                    <RatingBlock
-                        average={average}
-                        count={count}
-                        onViewReviews={() => setTab('reviews')}
-                    />
+                    <RatingBlock average={average} count={count} onViewReviews={() => setTab('reviews')} />
 
-                    {/* Price */}
                     <div className="flex items-baseline gap-3 mb-5">
                         <span className="text-3xl font-bold text-stone-900">{fmt(p.price)}</span>
-                        {p.originalPrice > p.price && (
+                        {p.comparePrice > p.price && (
                             <>
-                                <span className="text-stone-400 line-through text-lg">{fmt(p.originalPrice)}</span>
-                                <DiscountBadge originalPrice={p.originalPrice} price={p.price} />
+                                <span className="text-stone-400 line-through text-lg">{fmt(p.comparePrice)}</span>
+                                <DiscountBadge originalPrice={p.comparePrice} price={p.price} />
                             </>
                         )}
                     </div>
 
                     <p className="text-stone-600 leading-relaxed mb-5 text-sm">
                         {p.description
-                            ? p.description.length > 200 ? p.description.substring(0, 200) + '...' : p.description
+                            ? p.description.length > 200 ? p.description.substring(0, 200) + '…' : p.description
                             : 'Premium quality honey, pure and natural.'}
                     </p>
 
-                    {/* Stock */}
+                    {/* Weight + Share strip */}
+                    <div className="flex items-center gap-3 mb-5 flex-wrap">
+                        <WeightPill weight={p.weight} />
+                        <div className="relative">
+                            <button
+                                onClick={() => setShareOpen((s) => !s)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all btn-bounce shadow-sm ${shareOpen
+                                    ? 'bg-amber-50 border-amber-300 text-amber-700'
+                                    : 'bg-white border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50'
+                                    }`}
+                                aria-label="Share product"
+                            >
+                                <ShareIcon />
+                                Share
+                            </button>
+                            <ShareDrawer
+                                productName={p.name}
+                                productId={p._id}
+                                open={shareOpen}
+                                onClose={() => setShareOpen(false)}
+                            />
+                        </div>
+                    </div>
+
                     <div className="mb-5">
                         <StockBadge stock={p.stock} sku={p.sku} />
                     </div>
 
-                    {/* Add to cart */}
                     {p.stock > 0 && (
                         <div className="flex gap-3 mb-6 flex-wrap">
                             <div className="flex items-center border border-stone-200 rounded-xl overflow-hidden">
